@@ -53,7 +53,7 @@ export const ScannerFallback: React.FC<ScannerFallbackProps> = ({
       
       <View style={styles.content}>
         <View style={styles.fallbackMessage}>
-          <Ionicons name="camera-off" size={64} color="#666" />
+          <Ionicons name="camera-outline" size={64} color="#666" />
           <Text style={styles.fallbackTitle}>Scanner no disponible</Text>
           <Text style={styles.fallbackText}>
             El scanner de cámara requiere un development build.{'\n'}

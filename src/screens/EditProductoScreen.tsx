@@ -290,20 +290,22 @@ export const EditProductoScreen: React.FC = () => {
           
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{producto.cantidad_total}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-            <View style={styles.statCard}>
               <Text style={[styles.statNumber, { color: '#34C759' }]}>
                 {producto.cantidad_in_total}
               </Text>
-              <Text style={styles.statLabel}>Entradas</Text>
+              <Text style={styles.statLabel}>Total Entradas</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={[styles.statNumber, { color: '#FF9500' }]}>
                 {producto.cantidad_out_total}
               </Text>
-              <Text style={styles.statLabel}>Salidas</Text>
+              <Text style={styles.statLabel}>Total Salidas</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, { color: '#007AFF' }]}>
+                {producto.cantidad_in_total + producto.cantidad_out_total}
+              </Text>
+              <Text style={styles.statLabel}>Total Movimientos</Text>
             </View>
           </View>
         </View>

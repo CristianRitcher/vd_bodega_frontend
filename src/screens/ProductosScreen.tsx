@@ -101,8 +101,9 @@ export const ProductosScreen: React.FC = () => {
           {item.descripcion}
         </Text>
         <View style={styles.productStats}>
-          <Text style={styles.productStat}>Total: {item.cantidad_total}</Text>
-          <Text style={styles.productStat}>Disponible: {item.cantidad_total}</Text>
+          <Text style={[styles.productStat, { color: '#34C759' }]}>Entradas: {item.cantidad_in_total}</Text>
+          <Text style={[styles.productStat, { color: '#FF9500' }]}>Salidas: {item.cantidad_out_total}</Text>
+          <Text style={[styles.productStat, { color: '#007AFF' }]}>Total: {item.cantidad_in_total + item.cantidad_out_total}</Text>
         </View>
       </View>
       
@@ -292,10 +293,11 @@ const styles = StyleSheet.create({
   productStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 5,
   },
   productStat: {
-    fontSize: 12,
-    color: '#007AFF',
+    fontSize: 11,
     fontWeight: '500',
   },
 });

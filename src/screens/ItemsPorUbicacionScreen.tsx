@@ -188,6 +188,18 @@ export const ItemsPorUbicacionScreen: React.FC = () => {
         <Text style={styles.itemDescripcionExtra}>Nota: {item.descripcion}</Text>
       )}
       
+      {/* Mostrar entradas y salidas por separado */}
+      <View style={styles.movimientosContainer}>
+        <View style={styles.movimientoItem}>
+          <Ionicons name="arrow-down-circle" size={14} color="#34C759" />
+          <Text style={styles.movimientoText}>Entradas: {item.cantidad_in}</Text>
+        </View>
+        <View style={styles.movimientoItem}>
+          <Ionicons name="arrow-up-circle" size={14} color="#FF9500" />
+          <Text style={styles.movimientoText}>Salidas: {item.cantidad_out}</Text>
+        </View>
+      </View>
+      
       {(item.producto.marca || item.producto.categoria) && (
         <View style={styles.itemMeta}>
           {item.producto.marca && (
@@ -599,6 +611,26 @@ const styles = StyleSheet.create({
     color: '#666',
     fontStyle: 'italic',
     marginBottom: 4,
+  },
+  movimientosContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  movimientoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  movimientoText: {
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '500',
+    marginLeft: 4,
   },
   itemMeta: {
     flexDirection: 'row',

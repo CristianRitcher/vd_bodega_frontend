@@ -222,10 +222,10 @@ export const ItemDetailScreen: React.FC = () => {
             <View style={[styles.movimientoRow, styles.movimientoTotal]}>
               <View style={styles.movimientoInfo}>
                 <Ionicons name="calculator" size={20} color="#007AFF" />
-                <Text style={styles.movimientoLabelTotal}>Balance Actual</Text>
+                <Text style={styles.movimientoLabelTotal}>Total Movimientos</Text>
               </View>
               <Text style={styles.movimientoValueTotal}>
-                {item.cantidad_in - item.cantidad_out}
+                {item.cantidad_in + item.cantidad_out}
               </Text>
             </View>
           </View>

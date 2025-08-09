@@ -139,16 +139,16 @@ export const ProductoDetailScreen: React.FC = () => {
 
           <View style={styles.productStats}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{producto.cantidad_total}</Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{producto.cantidad_in_total}</Text>
+              <Text style={[styles.statValue, { color: '#34C759' }]}>{producto.cantidad_in_total}</Text>
               <Text style={styles.statLabel}>Entradas</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{producto.cantidad_out_total}</Text>
+              <Text style={[styles.statValue, { color: '#FF9500' }]}>{producto.cantidad_out_total}</Text>
               <Text style={styles.statLabel}>Salidas</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: '#007AFF' }]}>{producto.cantidad_in_total + producto.cantidad_out_total}</Text>
+              <Text style={styles.statLabel}>Total Movimientos</Text>
             </View>
           </View>
 
