@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { ubicacionesAPI, itemsAPI } from '../services/api';
-import { Ubicacion, ItemProducto } from '../types';
+import { ubicacionesAPI, itemsAPI, itemsConSerialAPI, itemsSinSerialAPI } from '../services/api';
+import { Ubicacion, ItemProducto, ItemConSerial, ItemSinSerial } from '../types';
 
 interface ItemConProducto extends ItemProducto {
   producto: {
@@ -26,6 +26,8 @@ interface ItemConProducto extends ItemProducto {
 
 interface UbicacionConItems extends Ubicacion {
   items: ItemConProducto[];
+  itemsConSerial: ItemConSerial[];
+  itemsSinSerial: ItemSinSerial[];
   totalItems: number;
 }
 
@@ -54,21 +56,34 @@ export const ItemsPorUbicacionScreen: React.FC = () => {
       // Cargar todas las ubicaciones
       const ubicacionesData = await ubicacionesAPI.getAll();
       
-      // Para cada ubicación, cargar sus items
+      // Para cada ubicación, cargar sus items (legacy, con serial y sin serial)
       const ubicacionesConItems: UbicacionConItems[] = await Promise.all(
         ubicacionesData.map(async (ubicacion) => {
           try {
-            const items = await itemsAPI.getByUbicacion(ubicacion.id);
+            const [itemsLegacy, itemsConSerial, itemsSinSerial] = await Promise.all([
+              itemsAPI.getByUbicacion(ubicacion.id).catch(() => []),
+              itemsConSerialAPI.getByUbicacion(ubicacion.id).catch(() => []),
+              itemsSinSerialAPI.getByUbicacion(ubicacion.id).catch(() => []),
+            ]);
+            
+            const totalItems = (itemsLegacy?.length || 0) + 
+                             (itemsConSerial?.length || 0) + 
+                             (itemsSinSerial?.length || 0);
+            
             return {
               ...ubicacion,
-              items: items || [],
-              totalItems: items?.length || 0,
+              items: itemsLegacy || [],
+              itemsConSerial: itemsConSerial || [],
+              itemsSinSerial: itemsSinSerial || [],
+              totalItems,
             };
           } catch (error) {
-            // Si no hay items o hay error, devolver ubicación vacía
+            // Si hay error, devolver ubicación vacía
             return {
               ...ubicacion,
               items: [],
+              itemsConSerial: [],
+              itemsSinSerial: [],
               totalItems: 0,
             };
           }
@@ -166,6 +181,75 @@ export const ItemsPorUbicacionScreen: React.FC = () => {
     return { totalUbicaciones, ubicacionesConItems, totalItems };
   };
 
+  const renderItemConSerial = ({ item }: { item: ItemConSerial }) => (
+    <TouchableOpacity style={styles.itemCard} onPress={() => navigation.navigate('ItemConSerialDetail', { item })}>
+      <View style={styles.itemHeader}>
+        <Text style={styles.itemSerial}>{item.serial}</Text>
+        <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(item.estado) }]}>
+          <Ionicons 
+            name={getEstadoIcon(item.estado)} 
+            size={12} 
+            color="white" 
+            style={styles.estadoIcon}
+          />
+          <Text style={styles.estadoText}>{item.estado}</Text>
+        </View>
+      </View>
+      
+      {item.producto && (
+        <>
+          <Text style={styles.itemSku}>SKU: {item.producto.sku}</Text>
+          <Text style={styles.itemDescripcion}>{item.producto.descripcion}</Text>
+        </>
+      )}
+      
+      {item.descripcion && (
+        <Text style={styles.itemDescripcionExtra}>Nota: {item.descripcion}</Text>
+      )}
+      
+      {/* Estado del item */}
+      <View style={styles.movimientosContainer}>
+        <View style={styles.movimientoItem}>
+          <Ionicons 
+            name={item.check === 'in' ? "arrow-down-circle" : "arrow-up-circle"} 
+            size={14} 
+            color={item.check === 'in' ? "#34C759" : "#FF9500"} 
+          />
+          <Text style={styles.movimientoText}>
+            Estado: {item.check === 'in' ? 'En bodega' : 'Fuera de bodega'}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderItemSinSerial = ({ item }: { item: ItemSinSerial }) => (
+    <TouchableOpacity style={styles.itemCard} onPress={() => navigation.navigate('ItemSinSerialDetail', { item })}>
+      <View style={styles.itemHeader}>
+        <Text style={styles.itemSerial}>Sin Serial</Text>
+      </View>
+      
+      {item.producto && (
+        <>
+          <Text style={styles.itemSku}>SKU: {item.producto.sku}</Text>
+          <Text style={styles.itemDescripcion}>{item.producto.descripcion}</Text>
+        </>
+      )}
+      
+      {/* Mostrar cantidades */}
+      <View style={styles.movimientosContainer}>
+        <View style={styles.movimientoItem}>
+          <Ionicons name="arrow-down-circle" size={14} color="#34C759" />
+          <Text style={styles.movimientoText}>Entradas: {item.cantidad_in}</Text>
+        </View>
+        <View style={styles.movimientoItem}>
+          <Ionicons name="arrow-up-circle" size={14} color="#FF9500" />
+          <Text style={styles.movimientoText}>Salidas: {item.cantidad_out}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   const renderItem = ({ item }: { item: ItemConProducto }) => (
     <View style={styles.itemCard}>
       <View style={styles.itemHeader}>
@@ -259,13 +343,46 @@ export const ItemsPorUbicacionScreen: React.FC = () => {
                 </Text>
               </View>
             ) : (
-              <FlatList
-                data={ubicacion.items}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id.toString()}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
+              <View>
+                {/* Items Con Serial */}
+                {ubicacion.itemsConSerial.length > 0 && (
+                  <View style={styles.itemTypeSection}>
+                    <Text style={styles.itemTypeTitle}>Items con Serial ({ubicacion.itemsConSerial.length})</Text>
+                    <FlatList
+                      data={ubicacion.itemsConSerial}
+                      renderItem={renderItemConSerial}
+                      keyExtractor={(item) => `serial-${item.id}`}
+                      scrollEnabled={false}
+                    />
+                  </View>
+                )}
+                
+                {/* Items Sin Serial */}
+                {ubicacion.itemsSinSerial.length > 0 && (
+                  <View style={styles.itemTypeSection}>
+                    <Text style={styles.itemTypeTitle}>Items sin Serial ({ubicacion.itemsSinSerial.length})</Text>
+                    <FlatList
+                      data={ubicacion.itemsSinSerial}
+                      renderItem={renderItemSinSerial}
+                      keyExtractor={(item) => `noSerial-${item.id}`}
+                      scrollEnabled={false}
+                    />
+                  </View>
+                )}
+                
+                {/* Items Legacy (si existen) */}
+                {ubicacion.items.length > 0 && (
+                  <View style={styles.itemTypeSection}>
+                    <Text style={styles.itemTypeTitle}>Items Legacy ({ubicacion.items.length})</Text>
+                    <FlatList
+                      data={ubicacion.items}
+                      renderItem={renderItem}
+                      keyExtractor={(item) => `legacy-${item.id}`}
+                      scrollEnabled={false}
+                    />
+                  </View>
+                )}
+              </View>
             )}
           </View>
         )}
@@ -656,6 +773,16 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 5,
     textAlign: 'center',
+  },
+  itemTypeSection: {
+    marginBottom: 16,
+  },
+  itemTypeTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
   emptyList: {
     alignItems: 'center',

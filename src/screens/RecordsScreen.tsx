@@ -47,6 +47,8 @@ export const RecordsScreen: React.FC = () => {
         return { name: 'trash', color: '#FF3B30' };
       case 'inventario':
         return { name: 'clipboard', color: '#007AFF' };
+      case 'movimiento':
+        return { name: 'swap-horizontal', color: '#007AFF' };
       default:
         return { name: 'document', color: '#666' };
     }
@@ -62,6 +64,8 @@ export const RecordsScreen: React.FC = () => {
         return 'Eliminación';
       case 'inventario':
         return 'Inventario';
+      case 'movimiento':
+        return 'Movimiento';
       default:
         return 'Registro';
     }
@@ -110,6 +114,17 @@ export const RecordsScreen: React.FC = () => {
           </Text>
         )}
         
+        {item.tipo === 'movimiento' && item.ubicacionOrigen && item.ubicacionDestino && (
+          <View style={styles.movimientoInfo}>
+            <Text style={styles.recordUbicacion}>
+              De: {item.ubicacionOrigen.rack}-{item.ubicacionOrigen.fila}-{item.ubicacionOrigen.columna}
+            </Text>
+            <Text style={styles.recordUbicacion}>
+              A: {item.ubicacionDestino.rack}-{item.ubicacionDestino.fila}-{item.ubicacionDestino.columna}
+            </Text>
+          </View>
+        )}
+        
         <Text style={styles.recordItems}>
           {item.lista.length} items procesados
         </Text>
@@ -136,6 +151,7 @@ export const RecordsScreen: React.FC = () => {
     { key: 'check_out', label: 'Check-out', icon: 'arrow-up-circle' },
     { key: 'inventario', label: 'Inventarios', icon: 'clipboard' },
     { key: 'eliminado', label: 'Eliminados', icon: 'trash' },
+    { key: 'movimiento', label: 'Movimientos', icon: 'swap-horizontal' },
   ];
 
   return (
@@ -307,6 +323,9 @@ const styles = StyleSheet.create({
   recordUbicacion: {
     fontSize: 14,
     color: '#007AFF',
+    marginBottom: 5,
+  },
+  movimientoInfo: {
     marginBottom: 5,
   },
   recordItems: {

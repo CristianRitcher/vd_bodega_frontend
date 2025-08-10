@@ -21,6 +21,18 @@ import { ItemsPorUbicacionScreen } from '../screens/ItemsPorUbicacionScreen';
 import { ItemDetailScreen } from '../screens/ItemDetailScreen';
 import { EditProductoScreen } from '../screens/EditProductoScreen';
 import { EditItemScreen } from '../screens/EditItemScreen';
+import { BusquedaSerialScreen } from '../screens/BusquedaSerialScreen';
+import { ItemsEnUbicacionScreen } from '../screens/ItemsEnUbicacionScreen';
+import { CreateItemConSerialScreen } from '../screens/CreateItemConSerialScreen';
+import { CreateItemSinSerialScreen } from '../screens/CreateItemSinSerialScreen';
+import { SeleccionarUbicacionesMoverScreen } from '../screens/SeleccionarUbicacionesMoverScreen';
+import { MoverItemsScreen } from '../screens/MoverItemsScreen';
+import { ItemConSerialDetailScreen } from '../screens/ItemConSerialDetailScreen';
+import { ItemSinSerialDetailScreen } from '../screens/ItemSinSerialDetailScreen';
+import { SeleccionarUbicacionScreen } from '../screens/SeleccionarUbicacionScreen';
+import { NewCheckInScreen } from '../screens/NewCheckInScreen';
+import { NewCheckOutScreen } from '../screens/NewCheckOutScreen';
+import { NewEliminarItemsScreen } from '../screens/NewEliminarItemsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -41,6 +53,18 @@ const MainStack = () => {
       <Stack.Screen name="ItemDetail" component={ItemDetailScreen} />
       <Stack.Screen name="EditProducto" component={EditProductoScreen} />
       <Stack.Screen name="EditItem" component={EditItemScreen} />
+      <Stack.Screen name="BusquedaSerial" component={BusquedaSerialScreen} />
+      <Stack.Screen name="ItemsEnUbicacion" component={ItemsEnUbicacionScreen} />
+      <Stack.Screen name="CreateItemConSerial" component={CreateItemConSerialScreen} />
+      <Stack.Screen name="CreateItemSinSerial" component={CreateItemSinSerialScreen} />
+      <Stack.Screen name="SeleccionarUbicacion" component={SeleccionarUbicacionScreen} />
+      <Stack.Screen name="NewCheckIn" component={NewCheckInScreen} />
+      <Stack.Screen name="NewCheckOut" component={NewCheckOutScreen} />
+      <Stack.Screen name="NewEliminarItems" component={NewEliminarItemsScreen} />
+      <Stack.Screen name="SeleccionarUbicacionesMover" component={SeleccionarUbicacionesMoverScreen} />
+      <Stack.Screen name="MoverItems" component={MoverItemsScreen} />
+      <Stack.Screen name="ItemConSerialDetail" component={ItemConSerialDetailScreen} />
+      <Stack.Screen name="ItemSinSerialDetail" component={ItemSinSerialDetailScreen} />
     </Stack.Navigator>
   );
 };

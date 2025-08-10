@@ -10,48 +10,28 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { inventariosAPI, itemsAPI } from '../services/api';
-import { ItemInventario } from '../types';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { inventariosAPI } from '../services/api';
+import { Ubicacion } from '../types';
 import { Scanner } from '../components/Scanner';
 import { useAuth } from '../context/AuthContext';
 
 export const CheckInScreen: React.FC = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const { user } = useAuth();
+  const { ubicacion } = route.params as { ubicacion: Ubicacion };
+  
   const [loading, setLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [items, setItems] = useState<ItemInventario[]>([]);
-  const [editingItem, setEditingItem] = useState<number | null>(null);
-  const [tempCantidad, setTempCantidad] = useState('');
+  const [seriales, setSeriales] = useState<string[]>([]);
 
-  const handleScan = async (serial: string) => {
+  const handleScan = (serial: string) => {
     setShowScanner(false);
     
-    try {
-      // Verificar si el item existe
-      await itemsAPI.getBySerial(serial);
-      
-      // Verificar si ya está en la lista
-      const existingIndex = items.findIndex(item => item.serial === serial);
-      if (existingIndex >= 0) {
-        // Si ya existe, incrementar cantidad
-        const updatedItems = [...items];
-        updatedItems[existingIndex].cantidad += 1;
-        setItems(updatedItems);
-        Alert.alert('Item actualizado', `Cantidad incrementada para ${serial}`);
-      } else {
-        // Si no existe, agregar nuevo
-        const newItem: ItemInventario = {
-          serial,
-          cantidad: 1,
-        };
-        setItems(prev => [...prev, newItem]);
-        Alert.alert('Item agregado', `${serial} agregado al check-in`);
-      }
-    } catch (error) {
-      Alert.alert('Error', `No se encontró el item con serial: ${serial}`);
-    }
+    // Agregar serial a la lista (permite duplicados)
+    setSeriales(prev => [...prev, serial]);
+    Alert.alert('Serial agregado', `${serial} agregado al check-in`);
   };
 
   const updateCantidad = (index: number, nuevaCantidad: string) => {

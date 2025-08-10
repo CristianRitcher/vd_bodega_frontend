@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { Producto, ItemProducto } from '../types';
-import { itemsAPI, productosAPI } from '../services/api';
+import { Producto, ItemProducto, ItemConSerial, ItemSinSerial } from '../types';
+import { itemsAPI, productosAPI, itemsConSerialAPI, itemsSinSerialAPI } from '../services/api';
 
 
 export const ProductoDetailScreen: React.FC = () => {
@@ -22,17 +22,37 @@ export const ProductoDetailScreen: React.FC = () => {
   
   const [producto, setProducto] = useState<Producto>(initialProducto);
   const [items, setItems] = useState<ItemProducto[]>([]);
+  const [itemsConSerial, setItemsConSerial] = useState<ItemConSerial[]>([]);
+  const [itemsSinSerial, setItemsSinSerial] = useState<ItemSinSerial[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadItems();
   }, []);
 
+  useEffect(() => {
+    // Refrescar cuando se navegue de vuelta con nuevos datos
+    if (producto._refresh) {
+      loadItems();
+    }
+  }, [producto._refresh]);
+
   const loadItems = async () => {
     setIsLoading(true);
     try {
-      const data = await itemsAPI.getAll(undefined, producto.id);
-      setItems(data);
+      // Recargar datos del producto para obtener cantidades actualizadas
+      const productoActualizado = await productosAPI.getById(producto.id);
+      
+      // Actualizar el producto en la navegación para reflejar cambios
+      navigation.setParams({ producto: productoActualizado });
+      
+      if (producto.serial) {
+        const data = await itemsConSerialAPI.getByProducto(producto.id);
+        setItemsConSerial(data);
+      } else {
+        const data = await itemsSinSerialAPI.getByProducto(producto.id);
+        setItemsSinSerial(data);
+      }
     } catch (error) {
       Alert.alert('Error', 'No se pudieron cargar los items');
     } finally {
@@ -65,10 +85,10 @@ export const ProductoDetailScreen: React.FC = () => {
     }
   };
 
-  const renderItem = ({ item }: { item: ItemProducto }) => (
+  const renderItemConSerial = ({ item }: { item: ItemConSerial }) => (
     <TouchableOpacity
       style={styles.itemCard}
-      onPress={() => navigation.navigate('ItemDetail', { item })} 
+               onPress={() => navigation.navigate('ItemConSerialDetail', { item })} 
     >
       <View style={styles.itemInfo}>
         <Text style={styles.itemSerial}>{item.serial}</Text>
@@ -79,6 +99,9 @@ export const ProductoDetailScreen: React.FC = () => {
           <Text style={[styles.itemStatus, { color: getStatusColor(item.estado) }]}>
             {item.estado.toUpperCase()}
           </Text>
+          <Text style={[styles.itemCheck, { color: item.check === 'in' ? '#34C759' : '#FF9500' }]}>
+            {item.check.toUpperCase()}
+          </Text>
           <Text style={styles.itemLocation}>
             {item.ubicacion?.rack}-{item.ubicacion?.fila}-{item.ubicacion?.columna}
           </Text>
@@ -88,13 +111,43 @@ export const ProductoDetailScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
+  const renderItemSinSerial = ({ item }: { item: ItemSinSerial }) => (
+    <TouchableOpacity
+      style={styles.itemCard}
+               onPress={() => navigation.navigate('ItemSinSerialDetail', { item })} 
+    >
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemSerial}>
+          {item.ubicacion?.rack}-{item.ubicacion?.fila}-{item.ubicacion?.columna}
+        </Text>
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemQuantity}>In: {item.cantidad_in}</Text>
+          <Text style={styles.itemQuantity}>Out: {item.cantidad_out}</Text>
+          <Text style={styles.itemQuantity}>Total: {item.cantidad_in + item.cantidad_out}</Text>
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color="#ccc" />
+    </TouchableOpacity>
+  );
+
   const getStatusColor = (estado: string) => {
     switch (estado) {
+      case 'activo': return '#34C759';
+      case 'perdido': return '#FF3B30';
+      case 'en_reparacion': return '#FF9500';
       case 'disponible': return '#34C759';
       case 'prestado': return '#FF9500';
       case 'mantenimiento': return '#007AFF';
       case 'dañado': return '#FF3B30';
       default: return '#666';
+    }
+  };
+
+  const handleCreateItems = () => {
+    if (producto.serial) {
+      navigation.navigate('CreateItemConSerial', { producto });
+    } else {
+      navigation.navigate('CreateItemSinSerial', { producto });
     }
   };
 
@@ -148,7 +201,7 @@ export const ProductoDetailScreen: React.FC = () => {
             </View>
             <View style={styles.statItem}>
               <Text style={[styles.statValue, { color: '#007AFF' }]}>{producto.cantidad_in_total + producto.cantidad_out_total}</Text>
-              <Text style={styles.statLabel}>Total Movimientos</Text>
+              <Text style={styles.statLabel}>Total Items</Text>
             </View>
           </View>
 
@@ -182,25 +235,41 @@ export const ProductoDetailScreen: React.FC = () => {
 
         <View style={styles.itemsSection}>
           <View style={styles.itemsHeader}>
-            <Text style={styles.itemsTitle}>Items ({items.length})</Text>
+            <Text style={styles.itemsTitle}>
+              Items ({producto.serial ? itemsConSerial.length : itemsSinSerial.length})
+            </Text>
             <TouchableOpacity
               style={styles.addButton}
-              onPress={() => navigation.navigate('CreateItem', { producto })}
+              onPress={handleCreateItems}
             >
               <Ionicons name="add" size={20} color="white" />
-              <Text style={styles.addButtonText}>Agregar</Text>
+              <Text style={styles.addButtonText}>
+                Agregar {producto.serial ? 'Items con Serial' : 'Items sin Serial'}
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={items}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id.toString()}
-            scrollEnabled={false}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No hay items registrados</Text>
-            }
-          />
+          {producto.serial ? (
+            <FlatList
+              data={itemsConSerial}
+              renderItem={renderItemConSerial}
+              keyExtractor={(item) => item.id.toString()}
+              scrollEnabled={false}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No hay items con serial registrados</Text>
+              }
+            />
+          ) : (
+            <FlatList
+              data={itemsSinSerial}
+              renderItem={renderItemSinSerial}
+              keyExtractor={(item) => item.id.toString()}
+              scrollEnabled={false}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No hay items sin serial registrados</Text>
+              }
+            />
+          )}
         </View>
       </ScrollView>
     </View>
@@ -398,6 +467,16 @@ const styles = StyleSheet.create({
   itemLocation: {
     fontSize: 12,
     color: '#007AFF',
+  },
+  itemCheck: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  itemQuantity: {
+    fontSize: 12,
+    color: '#666',
+    marginRight: 8,
   },
   emptyText: {
     textAlign: 'center',

@@ -10,6 +10,8 @@ export interface Ubicacion {
   rack: string;
   descripcion?: string;
   items?: ItemProducto[];
+  itemsConSerial?: ItemConSerial[];
+  itemsSinSerial?: ItemSinSerial[];
 }
 
 export interface Producto {
@@ -27,10 +29,17 @@ export interface Producto {
   moq?: number;
   um?: string;
   ue?: string;
+  serial?: boolean;
   items?: ItemProducto[];
+  itemsConSerial?: ItemConSerial[];
+  itemsSinSerial?: ItemSinSerial[];
+  _refresh?: number; // Para forzar refresh en navegación
 }
 
 export enum EstadoItem {
+  ACTIVO = 'activo',
+  PERDIDO = 'perdido',
+  EN_REPARACION = 'en_reparacion',
   DISPONIBLE = 'disponible',
   PRESTADO = 'prestado',
   MANTENIMIENTO = 'mantenimiento',
@@ -48,6 +57,37 @@ export interface ItemProducto {
   producto_id: number;
   ubicacion?: Ubicacion;
   producto?: Producto;
+}
+
+export interface ItemConSerial {
+  id: number;
+  serial: string;
+  descripcion?: string;
+  estado: EstadoItem;
+  check: 'in' | 'out';
+  ubicacion_id: number;
+  producto_id: number;
+  ubicacion?: Ubicacion;
+  producto?: Producto;
+}
+
+export interface ItemSinSerial {
+  id: number;
+  cantidad_in: number;
+  cantidad_out: number;
+  ubicacion_id: number;
+  producto_id: number;
+  ubicacion?: Ubicacion;
+  producto?: Producto;
+}
+
+export interface UbicacionConItems {
+  ubicacion_id: number;
+  ubicacion_descripcion: string;
+  total_items: number;
+  items_in: number;
+  items_out: number;
+  items: ItemConSerial[];
 }
 
 export interface ItemInventario {
@@ -77,6 +117,17 @@ export interface Eliminado {
   hora: Date;
 }
 
+export interface Movimiento {
+  id: number;
+  responsable: string;
+  lista: ItemInventario[];
+  ubicacion_origen_id: number;
+  ubicacion_destino_id: number;
+  ubicacionOrigen?: Ubicacion;
+  ubicacionDestino?: Ubicacion;
+  hora: Date;
+}
+
 export interface Inventario {
   id: number;
   responsable: string;
@@ -101,7 +152,11 @@ export interface Record {
   responsable: string;
   lista: ItemInventario[];
   hora: Date;
-  tipo: 'check_in' | 'check_out' | 'eliminado' | 'inventario';
+  tipo: 'check_in' | 'check_out' | 'eliminado' | 'inventario' | 'movimiento';
   razon?: string;
   ubicacion?: Ubicacion;
+  ubicacionOrigen?: Ubicacion;
+  ubicacionDestino?: Ubicacion;
+  ubicacion_origen_id?: number;
+  ubicacion_destino_id?: number;
 }

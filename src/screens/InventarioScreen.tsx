@@ -54,19 +54,25 @@ export const InventarioScreen: React.FC = () => {
     },
     {
       id: 'checkin',
-      title: 'Check-in',
+      title: 'Check-In',
       description: 'Registrar entrada de herramientas',
       icon: 'arrow-down-circle',
       color: '#34C759',
-      onPress: () => navigation.navigate('CheckIn'),
+      onPress: () => navigation.navigate('SeleccionarUbicacion', { 
+        accion: 'NewCheckIn', 
+        titulo: 'Seleccionar Ubicación - Check-In' 
+      }),
     },
     {
       id: 'checkout',
-      title: 'Check-out',
+      title: 'Check-Out',
       description: 'Registrar salida de herramientas',
       icon: 'arrow-up-circle',
       color: '#FF9500',
-      onPress: () => navigation.navigate('CheckOut'),
+      onPress: () => navigation.navigate('SeleccionarUbicacion', { 
+        accion: 'NewCheckOut', 
+        titulo: 'Seleccionar Ubicación - Check-Out' 
+      }),
     },
     {
       id: 'eliminar',
@@ -74,7 +80,18 @@ export const InventarioScreen: React.FC = () => {
       description: 'Registrar eliminación de herramientas',
       icon: 'trash',
       color: '#FF3B30',
-      onPress: () => navigation.navigate('EliminarItems'),
+      onPress: () => navigation.navigate('SeleccionarUbicacion', { 
+        accion: 'NewEliminarItems', 
+        titulo: 'Seleccionar Ubicación - Eliminar' 
+      }),
+    },
+    {
+      id: 'mover',
+      title: 'Mover Items',
+      description: 'Cambiar items entre ubicaciones',
+      icon: 'swap-horizontal',
+      color: '#007AFF',
+      onPress: () => navigation.navigate('SeleccionarUbicacionesMover'),
     },
   ];
 

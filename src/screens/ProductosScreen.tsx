@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Producto } from '../types';
 import { productosAPI, itemsAPI } from '../services/api';
 import { Scanner } from '../components/Scanner';
+import { useAuth } from '../context/AuthContext';
 
 export const ProductosScreen: React.FC = () => {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -23,6 +24,7 @@ export const ProductosScreen: React.FC = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [scannerType, setScannerType] = useState<'sku' | 'serial'>('sku');
   const navigation = useNavigation();
+  const { logout } = useAuth();
 
   useEffect(() => {
     loadProductos();
@@ -66,9 +68,12 @@ export const ProductosScreen: React.FC = () => {
         const producto = await productosAPI.getBySku(data);
         navigation.navigate('ProductoDetail', { producto });
       } else {
-        // Buscar por serial
-        const item = await itemsAPI.getBySerial(data);
-        navigation.navigate('ItemDetail', { item });
+        // Buscar por serial - usar nueva funcionalidad
+        navigation.navigate('BusquedaSerial');
+        // Simular el escaneo en la nueva pantalla
+        setTimeout(() => {
+          navigation.setParams({ serialToSearch: data });
+        }, 100);
       }
     } catch (error) {
       Alert.alert('Error', `No se encontró ${scannerType === 'sku' ? 'producto' : 'item'} con código: ${data}`);
@@ -76,8 +81,29 @@ export const ProductosScreen: React.FC = () => {
   };
 
   const openScanner = (type: 'sku' | 'serial') => {
+    if (type === 'serial') {
+      // Navegar directamente a la nueva pantalla de búsqueda
+      navigation.navigate('BusquedaSerial');
+      return;
+    }
+    
     setScannerType(type);
     setShowScanner(true);
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Cerrar Sesión',
+      '¿Estás seguro que quieres cerrar sesión?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Cerrar Sesión', 
+          style: 'destructive',
+          onPress: logout,
+        },
+      ]
+    );
   };
 
   const renderProducto = ({ item }: { item: Producto }) => (
@@ -125,6 +151,12 @@ export const ProductosScreen: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Productos</Text>
+        <TouchableOpacity
+          style={styles.signOutButton}
+          onPress={handleSignOut}
+        >
+          <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -190,6 +222,9 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -200,6 +235,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+  },
+  signOutButton: {
+    padding: 8,
   },
   searchContainer: {
     backgroundColor: 'white',

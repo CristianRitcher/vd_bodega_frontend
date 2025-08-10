@@ -4,11 +4,15 @@ import {
   Usuario,
   Producto,
   ItemProducto,
+  ItemConSerial,
+  ItemSinSerial,
+  UbicacionConItems,
   Ubicacion,
   Inventario,
   CheckIn,
   CheckOut,
   Eliminado,
+  Movimiento,
   LoginCredentials,
   AuthResponse,
   Record,
@@ -16,7 +20,7 @@ import {
 } from '../types';
 
 // Configurar la URL base de la API
-const API_BASE_URL = 'http://192.168.0.112:3000'; // Cambiar por la IP de tu servidor
+const API_BASE_URL = 'http://192.168.0.207:3000'; // Cambiar por la IP de tu servidor
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -123,6 +127,109 @@ export const itemsAPI = {
   },
 };
 
+export const itemsConSerialAPI = {
+  getAll: async (): Promise<ItemConSerial[]> => {
+    const response = await api.get('/items-con-serial');
+    return response.data;
+  },
+  
+  getById: async (id: number): Promise<ItemConSerial> => {
+    const response = await api.get(`/items-con-serial/${id}`);
+    return response.data;
+  },
+  
+  getBySerial: async (serial: string): Promise<ItemConSerial[]> => {
+    const response = await api.get(`/items-con-serial/serial/${serial}`);
+    return response.data;
+  },
+  
+  getByUbicacion: async (ubicacionId: number): Promise<ItemConSerial[]> => {
+    const response = await api.get(`/items-con-serial/ubicacion/${ubicacionId}`);
+    return response.data;
+  },
+  
+  getByProducto: async (productoId: number): Promise<ItemConSerial[]> => {
+    const response = await api.get(`/items-con-serial/producto/${productoId}`);
+    return response.data;
+  },
+  
+  create: async (item: Omit<ItemConSerial, 'id' | 'ubicacion' | 'producto'>): Promise<ItemConSerial> => {
+    const response = await api.post('/items-con-serial', item);
+    return response.data;
+  },
+  
+  bulkCreate: async (data: {
+    seriales: string[];
+    ubicacion_id: number;
+    producto_id: number;
+    estado?: string;
+    check?: 'in' | 'out';
+  }): Promise<ItemConSerial[]> => {
+    const response = await api.post('/items-con-serial/bulk', data);
+    return response.data;
+  },
+  
+  update: async (id: number, item: Partial<ItemConSerial>): Promise<ItemConSerial> => {
+    const response = await api.patch(`/items-con-serial/${id}`, item);
+    return response.data;
+  },
+  
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/items-con-serial/${id}`);
+  },
+};
+
+export const itemsSinSerialAPI = {
+  getAll: async (): Promise<ItemSinSerial[]> => {
+    const response = await api.get('/items-sin-serial');
+    return response.data;
+  },
+  
+  getById: async (id: number): Promise<ItemSinSerial> => {
+    const response = await api.get(`/items-sin-serial/${id}`);
+    return response.data;
+  },
+  
+  getByUbicacion: async (ubicacionId: number): Promise<ItemSinSerial[]> => {
+    const response = await api.get(`/items-sin-serial/ubicacion/${ubicacionId}`);
+    return response.data;
+  },
+  
+  getByProducto: async (productoId: number): Promise<ItemSinSerial[]> => {
+    const response = await api.get(`/items-sin-serial/producto/${productoId}`);
+    return response.data;
+  },
+  
+  create: async (item: Omit<ItemSinSerial, 'id' | 'ubicacion' | 'producto'>): Promise<ItemSinSerial> => {
+    const response = await api.post('/items-sin-serial', item);
+    return response.data;
+  },
+  
+  update: async (id: number, item: Partial<ItemSinSerial>): Promise<ItemSinSerial> => {
+    const response = await api.patch(`/items-sin-serial/${id}`, item);
+    return response.data;
+  },
+  
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/items-sin-serial/${id}`);
+  },
+  
+  checkIn: async (productoId: number, ubicacionId: number, cantidad: number): Promise<void> => {
+    await api.post(`/items-sin-serial/check-in/${productoId}/${ubicacionId}/${cantidad}`);
+  },
+  
+  checkOut: async (productoId: number, ubicacionId: number, cantidad: number): Promise<void> => {
+    await api.post(`/items-sin-serial/check-out/${productoId}/${ubicacionId}/${cantidad}`);
+  },
+};
+
+export const busquedaAPI = {
+  buscarPorSerial: async (serial: string): Promise<UbicacionConItems[]> => {
+    const response = await api.get(`/busqueda/serial/${serial}`);
+    return response.data;
+  },
+};
+
 export const ubicacionesAPI = {
   getAll: async (): Promise<Ubicacion[]> => {
     const response = await api.get('/ubicaciones');
@@ -178,7 +285,9 @@ export const inventariosAPI = {
   
   createCheckIn: async (checkIn: {
     responsable: string;
-    lista: ItemInventario[];
+    seriales: string[];
+    ubicacion_id: number;
+    producto_id?: number;
   }): Promise<CheckIn> => {
     const response = await api.post('/inventarios/check-in', checkIn);
     return response.data;
@@ -192,7 +301,9 @@ export const inventariosAPI = {
   
   createCheckOut: async (checkOut: {
     responsable: string;
-    lista: ItemInventario[];
+    seriales: string[];
+    ubicacion_id: number;
+    producto_id?: number;
   }): Promise<CheckOut> => {
     const response = await api.post('/inventarios/check-out', checkOut);
     return response.data;
@@ -207,9 +318,26 @@ export const inventariosAPI = {
   createEliminado: async (eliminado: {
     responsable: string;
     razon: string;
-    lista: ItemInventario[];
+    seriales: string[];
+    ubicacion_id: number;
   }): Promise<Eliminado> => {
     const response = await api.post('/inventarios/eliminados', eliminado);
+    return response.data;
+  },
+  
+  // Movimientos
+  getMovimientos: async (): Promise<Movimiento[]> => {
+    const response = await api.get('/inventarios/movimientos/all');
+    return response.data;
+  },
+  
+  createMovimiento: async (movimiento: {
+    responsable: string;
+    seriales: string[];
+    ubicacion_origen_id: number;
+    ubicacion_destino_id: number;
+  }): Promise<Movimiento> => {
+    const response = await api.post('/inventarios/mover', movimiento);
     return response.data;
   },
   

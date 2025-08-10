@@ -305,7 +305,7 @@ export const EditProductoScreen: React.FC = () => {
               <Text style={[styles.statNumber, { color: '#007AFF' }]}>
                 {producto.cantidad_in_total + producto.cantidad_out_total}
               </Text>
-              <Text style={styles.statLabel}>Total Movimientos</Text>
+              <Text style={styles.statLabel}>Total Items</Text>
             </View>
           </View>
         </View>

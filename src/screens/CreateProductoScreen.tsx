@@ -27,6 +27,7 @@ export const CreateProductoScreen: React.FC = () => {
     moq: '',
     um: '',
     ue: '',
+    serial: true,
   });
 
   const handleSubmit = async () => {
@@ -40,6 +41,7 @@ export const CreateProductoScreen: React.FC = () => {
       const productData = {
         ...formData,
         moq: formData.moq ? parseInt(formData.moq) : undefined,
+        serial: formData.serial,
       };
       
       await productosAPI.create(productData);
@@ -200,6 +202,42 @@ export const CreateProductoScreen: React.FC = () => {
               />
             </View>
           </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tipo de Item</Text>
+            
+            <View style={styles.serialOptions}>
+              <TouchableOpacity
+                style={[styles.serialOption, formData.serial && styles.serialOptionSelected]}
+                onPress={() => setFormData(prev => ({ ...prev, serial: true }))}
+              >
+                <Ionicons 
+                  name={formData.serial ? "radio-button-on" : "radio-button-off"} 
+                  size={20} 
+                  color={formData.serial ? "#007AFF" : "#ccc"} 
+                />
+                <View style={styles.serialOptionText}>
+                  <Text style={styles.serialOptionTitle}>Con Serial</Text>
+                  <Text style={styles.serialOptionDesc}>Items únicos con código de barras</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.serialOption, !formData.serial && styles.serialOptionSelected]}
+                onPress={() => setFormData(prev => ({ ...prev, serial: false }))}
+              >
+                <Ionicons 
+                  name={!formData.serial ? "radio-button-on" : "radio-button-off"} 
+                  size={20} 
+                  color={!formData.serial ? "#007AFF" : "#ccc"} 
+                />
+                <View style={styles.serialOptionText}>
+                  <Text style={styles.serialOptionTitle}>Sin Serial</Text>
+                  <Text style={styles.serialOptionDesc}>Items por cantidad (ej: tornillos, cables)</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -298,5 +336,35 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  serialOptions: {
+    gap: 12,
+  },
+  serialOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#f9f9f9',
+  },
+  serialOptionSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#f0f8ff',
+  },
+  serialOptionText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  serialOptionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 2,
+  },
+  serialOptionDesc: {
+    fontSize: 12,
+    color: '#666',
   },
 });
