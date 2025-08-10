@@ -45,6 +45,14 @@ export const ItemsPorUbicacionScreen: React.FC = () => {
     loadData();
   }, []);
 
+  // Refrescar cuando se regrese a esta pantalla
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   useEffect(() => {
     filterUbicaciones();
   }, [searchText, ubicaciones, filterType]);

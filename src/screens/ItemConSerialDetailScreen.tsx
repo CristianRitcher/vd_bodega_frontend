@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,9 +20,26 @@ interface RouteParams {
 export const ItemConSerialDetailScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { item } = route.params as RouteParams;
+  const { item: itemInicial } = route.params as RouteParams;
   
+  const [item, setItem] = useState<ItemConSerial>(itemInicial);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Refrescar cuando se navegue de vuelta con nuevos datos
+    if (itemInicial._refresh) {
+      reloadItem();
+    }
+  }, [itemInicial._refresh]);
+
+  const reloadItem = async () => {
+    try {
+      const itemActualizado = await itemsConSerialAPI.getById(item.id);
+      setItem(itemActualizado);
+    } catch (error) {
+      console.error('Error recargando item:', error);
+    }
+  };
 
   const getStatusColor = (estado: EstadoItem) => {
     switch (estado) {

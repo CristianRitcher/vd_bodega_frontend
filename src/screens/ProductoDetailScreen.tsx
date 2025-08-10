@@ -32,19 +32,25 @@ export const ProductoDetailScreen: React.FC = () => {
 
   useEffect(() => {
     // Refrescar cuando se navegue de vuelta con nuevos datos
-    if (producto._refresh) {
+    if (initialProducto._refresh) {
       loadItems();
     }
-  }, [producto._refresh]);
+  }, [initialProducto._refresh]);
+
+  // Refrescar cuando se regrese a esta pantalla
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadItems();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadItems = async () => {
     setIsLoading(true);
     try {
       // Recargar datos del producto para obtener cantidades actualizadas
       const productoActualizado = await productosAPI.getById(producto.id);
-      
-      // Actualizar el producto en la navegación para reflejar cambios
-      navigation.setParams({ producto: productoActualizado });
+      setProducto(productoActualizado);
       
       if (producto.serial) {
         const data = await itemsConSerialAPI.getByProducto(producto.id);

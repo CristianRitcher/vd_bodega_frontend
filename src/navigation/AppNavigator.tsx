@@ -29,6 +29,8 @@ import { SeleccionarUbicacionesMoverScreen } from '../screens/SeleccionarUbicaci
 import { MoverItemsScreen } from '../screens/MoverItemsScreen';
 import { ItemConSerialDetailScreen } from '../screens/ItemConSerialDetailScreen';
 import { ItemSinSerialDetailScreen } from '../screens/ItemSinSerialDetailScreen';
+import { EditItemConSerialScreen } from '../screens/EditItemConSerialScreen';
+import { EditItemSinSerialScreen } from '../screens/EditItemSinSerialScreen';
 import { SeleccionarUbicacionScreen } from '../screens/SeleccionarUbicacionScreen';
 import { NewCheckInScreen } from '../screens/NewCheckInScreen';
 import { NewCheckOutScreen } from '../screens/NewCheckOutScreen';
@@ -65,6 +67,8 @@ const MainStack = () => {
       <Stack.Screen name="MoverItems" component={MoverItemsScreen} />
       <Stack.Screen name="ItemConSerialDetail" component={ItemConSerialDetailScreen} />
       <Stack.Screen name="ItemSinSerialDetail" component={ItemSinSerialDetailScreen} />
+      <Stack.Screen name="EditItemConSerial" component={EditItemConSerialScreen} />
+      <Stack.Screen name="EditItemSinSerial" component={EditItemSinSerialScreen} />
     </Stack.Navigator>
   );
 };

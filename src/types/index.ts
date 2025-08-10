@@ -69,6 +69,7 @@ export interface ItemConSerial {
   producto_id: number;
   ubicacion?: Ubicacion;
   producto?: Producto;
+  _refresh?: number;
 }
 
 export interface ItemSinSerial {
@@ -79,6 +80,7 @@ export interface ItemSinSerial {
   producto_id: number;
   ubicacion?: Ubicacion;
   producto?: Producto;
+  _refresh?: number;
 }
 
 export interface UbicacionConItems {

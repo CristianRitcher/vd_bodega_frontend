@@ -30,6 +30,14 @@ export const ProductosScreen: React.FC = () => {
     loadProductos();
   }, []);
 
+  // Refrescar cuando se regrese a esta pantalla
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadProductos();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const loadProductos = async () => {
     setIsLoading(true);
     try {
