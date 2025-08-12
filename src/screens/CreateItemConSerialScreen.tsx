@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Producto, Ubicacion, EstadoItem } from '../types';
 import { itemsConSerialAPI, ubicacionesAPI } from '../services/api';
-import { Scanner } from '../components/Scanner';
+import { MultipleScanner } from '../components/MultipleScanner';
 
 interface RouteParams {
   producto: Producto;
@@ -25,10 +25,10 @@ export const CreateItemConSerialScreen: React.FC = () => {
   const { producto } = route.params as RouteParams;
   
   const [loading, setLoading] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState<Ubicacion | null>(null);
   const [seriales, setSeriales] = useState<string[]>([]);
+  const [showUbicacionSelector, setShowUbicacionSelector] = useState(false);
 
   useEffect(() => {
     loadUbicaciones();
@@ -43,158 +43,179 @@ export const CreateItemConSerialScreen: React.FC = () => {
     }
   };
 
-  const handleScanResult = (serial: string) => {
-    setShowScanner(false);
-    
-    if (!seriales.includes(serial)) {
-      setSeriales(prev => [...prev, serial]);
-    } else {
-      Alert.alert('Serial duplicado', `El serial ${serial} ya está en la lista`);
-    }
-  };
+  const handleCodesChange = useCallback((codes: string[]) => {
+    // Filtrar códigos vacíos para asegurar que solo se envíen códigos válidos
+    const validCodes = codes.filter(code => code.trim() !== '');
+    console.log('Códigos recibidos del scanner:', codes);
+    console.log('Códigos válidos filtrados:', validCodes);
+    setSeriales(validCodes);
+  }, []);
 
-  const removeSerial = (index: number) => {
-    setSeriales(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const guardarItems = async () => {
+  const handleSubmit = async () => {
     if (!ubicacionSeleccionada) {
-      Alert.alert('Error', 'Selecciona una ubicación');
+      Alert.alert('Error', 'Debes seleccionar una ubicación');
       return;
     }
 
     if (seriales.length === 0) {
-      Alert.alert('Error', 'Agrega al menos un serial');
+      Alert.alert('Error', 'Debes escanear al menos un serial');
       return;
     }
 
+    const payload = {
+      seriales: seriales,
+      producto_id: producto.id,
+      ubicacion_id: ubicacionSeleccionada.id,
+      estado: EstadoItem.ACTIVO,
+      check: 'in' as 'in' | 'out',
+    };
+
+    console.log('Payload a enviar:', payload);
+    console.log('Seriales:', seriales);
+    console.log('Producto ID:', producto.id);
+    console.log('Ubicación ID:', ubicacionSeleccionada.id);
+
     setLoading(true);
     try {
-      await itemsConSerialAPI.bulkCreate({
-        seriales,
-        ubicacion_id: ubicacionSeleccionada.id,
-        producto_id: producto.id,
-        estado: EstadoItem.ACTIVO,
-        check: 'in',
-      });
+      await itemsConSerialAPI.bulkCreate(payload);
 
-      Alert.alert('Éxito', `Se crearon ${seriales.length} items`, [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Refrescar la pantalla anterior
-            navigation.navigate('ProductoDetail', { 
+      Alert.alert(
+        'Items Creados',
+        `Se crearon ${seriales.length} item(s) correctamente`,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('ProductoDetail', { 
               producto: { ...producto, _refresh: Date.now() } 
-            });
+            }),
           },
-        },
-      ]);
-    } catch (error) {
-      Alert.alert('Error', 'No se pudieron crear los items');
+        ]
+      );
+    } catch (error: any) {
+      console.error('Error completo al crear items:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      Alert.alert('Error', `No se pudieron crear los items: ${error.response?.data?.message || error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderSerial = ({ item, index }: { item: string; index: number }) => (
-    <View style={styles.serialItem}>
-      <Text style={styles.serialText}>{item}</Text>
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => removeSerial(index)}
-      >
-        <Ionicons name="close-circle" size={20} color="#FF3B30" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderUbicacion = ({ item }: { item: Ubicacion }) => (
+  const renderUbicacionItem = ({ item }: { item: Ubicacion }) => (
     <TouchableOpacity
       style={[
         styles.ubicacionItem,
-        ubicacionSeleccionada?.id === item.id && styles.ubicacionSelected,
+        ubicacionSeleccionada?.id === item.id && styles.ubicacionItemSelected,
       ]}
-      onPress={() => setUbicacionSeleccionada(item)}
+      onPress={() => {
+        setUbicacionSeleccionada(item);
+        setShowUbicacionSelector(false);
+      }}
     >
-      <Text style={styles.ubicacionText}>{item.rack}-{item.fila}-{item.columna}</Text>
+      <View style={styles.ubicacionInfo}>
+        <Text style={styles.ubicacionText}>
+          {item.rack}-{item.fila}-{item.columna}
+        </Text>
+        <Text style={styles.ubicacionSubtext}>
+          Rack: {item.rack} | Fila: {item.fila} | Columna: {item.columna}
+        </Text>
+      </View>
       {ubicacionSeleccionada?.id === item.id && (
-        <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+        <Ionicons name="checkmark-circle" size={24} color="#007AFF" />
       )}
     </TouchableOpacity>
   );
 
-  if (showScanner) {
+  if (showUbicacionSelector) {
     return (
-      <Scanner
-        onScan={handleScanResult}
-        onClose={() => setShowScanner(false)}
-        title="Escanear Serial"
-      />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => setShowUbicacionSelector(false)}
+          >
+            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Seleccionar Ubicación</Text>
+        </View>
+
+        <FlatList
+          data={ubicaciones}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderUbicacionItem}
+          style={styles.list}
+        />
+      </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Crear Items con Serial</Text>
-      </View>
-
       <ScrollView style={styles.content}>
-        <View style={styles.productoInfo}>
-          <Text style={styles.productoSku}>{producto.sku}</Text>
-          <Text style={styles.productoDescripcion}>{producto.descripcion}</Text>
+        <View style={styles.productInfo}>
+          <Text style={styles.productTitle}>Crear Items con Serial</Text>
+          <Text style={styles.productSku}>SKU: {producto.sku}</Text>
+          <Text style={styles.productDescription}>{producto.descripcion}</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Seleccionar Ubicación</Text>
-          <FlatList
-            data={ubicaciones}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderUbicacion}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.ubicacionesList}
+        <View style={styles.locationSection}>
+          <Text style={styles.sectionTitle}>Ubicación *</Text>
+          <TouchableOpacity
+            style={styles.locationSelector}
+            onPress={() => setShowUbicacionSelector(true)}
+          >
+            <View style={styles.locationInfo}>
+              <Ionicons name="location" size={20} color="#666" />
+              <Text style={styles.locationText}>
+                {ubicacionSeleccionada 
+                  ? `${ubicacionSeleccionada.rack}-${ubicacionSeleccionada.fila}-${ubicacionSeleccionada.columna}`
+                  : 'Seleccionar ubicación...'
+                }
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.scannerSection}>
+          <MultipleScanner
+            onCodesChange={handleCodesChange}
+            placeholder="Escanear serial del item..."
+            title="Seriales de Items"
+            delayMs={500}
           />
         </View>
+      </ScrollView>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>2. Escanear Seriales ({seriales.length})</Text>
-            <TouchableOpacity
-              style={styles.scanButton}
-              onPress={() => setShowScanner(true)}
-              disabled={!ubicacionSeleccionada}
-            >
-              <Ionicons name="barcode" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          {seriales.length > 0 && (
-            <FlatList
-              data={seriales}
-              keyExtractor={(item, index) => `${item}-${index}`}
-              renderItem={renderSerial}
-              style={styles.serialesList}
-            />
-          )}
-        </View>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.cancelButtonText}>Cancelar</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.saveButton, (!ubicacionSeleccionada || seriales.length === 0) && styles.saveButtonDisabled]}
-          onPress={guardarItems}
+          style={[
+            styles.createButton,
+            (loading || !ubicacionSeleccionada || seriales.length === 0) && styles.createButtonDisabled,
+          ]}
+          onPress={handleSubmit}
           disabled={loading || !ubicacionSeleccionada || seriales.length === 0}
         >
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Guardando...' : `Crear ${seriales.length} Items`}
+          <Ionicons 
+            name="add-circle" 
+            size={20} 
+            color={loading || !ubicacionSeleccionada || seriales.length === 0 ? "#ccc" : "#fff"} 
+          />
+          <Text style={[
+            styles.createButtonText,
+            (loading || !ubicacionSeleccionada || seriales.length === 0) && styles.createButtonTextDisabled,
+          ]}>
+            {loading ? 'Creando...' : `Crear (${seriales.length})`}
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
@@ -202,129 +223,153 @@ export const CreateItemConSerialScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
+  },
+  content: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'white',
+    padding: 16,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#e1e5e9',
   },
   backButton: {
     marginRight: 16,
   },
-  title: {
+  headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
   },
-  content: {
-    flex: 1,
-    padding: 16,
+  productInfo: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
   },
-  productoInfo: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  productoSku: {
+  productTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  productSku: {
+    fontSize: 14,
     color: '#007AFF',
+    fontWeight: '500',
     marginBottom: 4,
   },
-  productoDescripcion: {
-    fontSize: 14,
+  productDescription: {
+    fontSize: 16,
     color: '#666',
   },
-  section: {
-    marginBottom: 24,
+  locationSection: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginTop: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
     marginBottom: 12,
   },
-  sectionHeader: {
+  locationSelector: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
-  ubicacionesList: {
-    maxHeight: 60,
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 8,
+  },
+  scannerSection: {
+    flex: 1,
+    marginTop: 20,
+  },
+  list: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
   },
   ubicacionItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  ubicacionSelected: {
-    borderColor: '#34C759',
-    backgroundColor: '#f0f9f0',
+  ubicacionItemSelected: {
+    backgroundColor: '#f0f8ff',
+  },
+  ubicacionInfo: {
+    flex: 1,
   },
   ubicacionText: {
-    fontSize: 14,
-    color: '#333',
-    marginRight: 8,
-  },
-  scanButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 8,
-  },
-  serialesList: {
-    maxHeight: 200,
-  },
-  serialItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  serialText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  removeButton: {
-    padding: 4,
-  },
-  saveButton: {
-    backgroundColor: '#34C759',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 40,
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  saveButtonText: {
-    color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+  },
+  ubicacionSubtext: {
+    fontSize: 14,
+    color: '#666',
+  },
+  footer: {
+    flexDirection: 'row',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e1e5e9',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  createButton: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 8,
+    backgroundColor: '#28a745',
+    gap: 8,
+  },
+  createButtonDisabled: {
+    backgroundColor: '#f0f0f0',
+  },
+  createButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  createButtonTextDisabled: {
+    color: '#ccc',
   },
 });

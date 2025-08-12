@@ -6,14 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  FlatList,
-  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { inventariosAPI } from '../services/api';
 import { Ubicacion } from '../types';
-import { Scanner } from '../components/Scanner';
+import { MultipleScanner } from '../components/MultipleScanner';
 import { useAuth } from '../context/AuthContext';
 
 export const CheckInScreen: React.FC = () => {
@@ -23,44 +21,11 @@ export const CheckInScreen: React.FC = () => {
   const { ubicacion } = route.params as { ubicacion: Ubicacion };
   
   const [loading, setLoading] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
   const [seriales, setSeriales] = useState<string[]>([]);
 
-  const handleScan = (serial: string) => {
-    setShowScanner(false);
-    
-    // Agregar serial a la lista (permite duplicados)
-    setSeriales(prev => [...prev, serial]);
-    Alert.alert('Serial agregado', `${serial} agregado al check-in`);
-  };
-
-  const updateCantidad = (index: number, nuevaCantidad: string) => {
-    const cantidad = parseInt(nuevaCantidad) || 0;
-    if (cantidad < 0) return;
-    
-    const updatedItems = [...items];
-    updatedItems[index].cantidad = cantidad;
-    setItems(updatedItems);
-    setEditingItem(null);
-  };
-
-  const removeItem = (index: number) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      '¿Deseas eliminar este item del check-in?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => {
-          const updatedItems = items.filter((_, i) => i !== index);
-          setItems(updatedItems);
-        }}
-      ]
-    );
-  };
-
   const handleSubmit = async () => {
-    if (items.length === 0) {
-      Alert.alert('Error', 'Agrega al menos un item al check-in');
+    if (seriales.length === 0) {
+      Alert.alert('Error', 'Debes escanear al menos un serial');
       return;
     }
 
@@ -69,175 +34,102 @@ export const CheckInScreen: React.FC = () => {
       return;
     }
 
-    setLoading(true);
-    try {
-      await inventariosAPI.createCheckIn({
-        responsable: user.nombre,
-        lista: items,
-      });
-      
-      Alert.alert('Éxito', 'Check-in registrado correctamente', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Error al registrar check-in');
-    } finally {
-      setLoading(false);
-    }
-  };
+    Alert.alert(
+      'Confirmar Check-In',
+      `¿Confirmas el check-in de ${seriales.length} item(s) en ${ubicacion.rack}-${ubicacion.fila}-${ubicacion.columna}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await inventariosAPI.createCheckIn({
+                responsable: user.nombre,
+                seriales: seriales,
+                ubicacion_id: ubicacion.id,
+              });
 
-  const getTotalItems = () => {
-    return items.reduce((total, item) => total + item.cantidad, 0);
-  };
-
-  const renderItem = ({ item, index }: { item: ItemInventario; index: number }) => (
-    <View style={styles.itemCard}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemSerial}>{item.serial}</Text>
-        
-        {editingItem === index ? (
-          <View style={styles.editContainer}>
-            <TextInput
-              style={styles.editInput}
-              value={tempCantidad}
-              onChangeText={setTempCantidad}
-              keyboardType="numeric"
-              autoFocus
-              onBlur={() => {
-                updateCantidad(index, tempCantidad);
-                setEditingItem(null);
-              }}
-              onSubmitEditing={() => {
-                updateCantidad(index, tempCantidad);
-              }}
-            />
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.cantidadContainer}
-            onPress={() => {
-              setEditingItem(index);
-              setTempCantidad(item.cantidad.toString());
-            }}
-          >
-            <Text style={styles.cantidadLabel}>Cantidad:</Text>
-            <Text style={styles.cantidadValue}>{item.cantidad}</Text>
-            <Ionicons name="pencil" size={16} color="#007AFF" />
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => removeItem(index)}
-      >
-        <Ionicons name="trash" size={20} color="#FF3B30" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  if (showScanner) {
-    return (
-      <Scanner
-        onScan={handleScan}
-        onClose={() => setShowScanner(false)}
-        title="Escanear Item para Check-in"
-      />
+              Alert.alert(
+                'Check-In Exitoso',
+                `Se procesaron ${seriales.length} item(s) correctamente`,
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => navigation.goBack(),
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error('Error en check-in:', error);
+              Alert.alert('Error', 'No se pudo procesar el check-in');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
     );
-  }
+  };
+
+  const handleCodesChange = (codes: string[]) => {
+    setSeriales(codes);
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <ScrollView style={styles.content}>
+        <View style={styles.header}>
+          <View style={styles.locationInfo}>
+            <Ionicons name="location" size={24} color="#007AFF" />
+            <View style={styles.locationDetails}>
+              <Text style={styles.locationTitle}>Ubicación de Check-In</Text>
+              <Text style={styles.locationText}>
+                {ubicacion.rack}-{ubicacion.fila}-{ubicacion.columna}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.scannerSection}>
+          <MultipleScanner
+            onCodesChange={handleCodesChange}
+            placeholder="Escanear serial para check-in..."
+            title="Seriales para Check-In"
+            delayMs={500}
+          />
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={styles.cancelButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Text style={styles.cancelButtonText}>Cancelar</Text>
         </TouchableOpacity>
-        
-        <Text style={styles.title}>Check-in</Text>
-        
+
         <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          style={[
+            styles.submitButton,
+            (loading || seriales.length === 0) && styles.submitButtonDisabled,
+          ]}
           onPress={handleSubmit}
-          disabled={loading || items.length === 0}
+          disabled={loading || seriales.length === 0}
         >
-          <Text style={styles.saveButtonText}>
-            {loading ? 'Registrando...' : 'Registrar'}
+          <Ionicons 
+            name="checkmark-circle" 
+            size={20} 
+            color={loading || seriales.length === 0 ? "#ccc" : "#fff"} 
+          />
+          <Text style={[
+            styles.submitButtonText,
+            (loading || seriales.length === 0) && styles.submitButtonTextDisabled,
+          ]}>
+            {loading ? 'Procesando...' : `Check-In (${seriales.length})`}
           </Text>
         </TouchableOpacity>
       </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.infoSection}>
-          <View style={styles.infoCard}>
-            <Ionicons name="arrow-down-circle" size={32} color="#34C759" />
-            <View style={styles.infoContent}>
-              <Text style={styles.infoTitle}>Registro de Entrada</Text>
-              <Text style={styles.infoText}>
-                Registra la entrada de herramientas a la bodega. 
-                Esto incrementará las cantidades disponibles.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Items para Check-in ({items.length})
-            </Text>
-            <View style={styles.totalBadge}>
-              <Text style={styles.totalText}>Total: {getTotalItems()}</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={styles.scanButton}
-            onPress={() => setShowScanner(true)}
-          >
-            <Ionicons name="barcode" size={24} color="white" />
-            <Text style={styles.scanButtonText}>Escanear Item</Text>
-          </TouchableOpacity>
-
-          {items.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="arrow-down-circle-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>No hay items para check-in</Text>
-              <Text style={styles.emptySubtext}>
-                Escanea o agrega items para registrar su entrada
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={items}
-              renderItem={renderItem}
-              keyExtractor={(item, index) => `${item.serial}-${index}`}
-              scrollEnabled={false}
-              style={styles.itemsList}
-            />
-          )}
-        </View>
-
-        <View style={styles.instructionsSection}>
-          <Text style={styles.instructionsTitle}>Instrucciones:</Text>
-          <View style={styles.instructionsList}>
-            <Text style={styles.instructionItem}>
-              • Escanea cada item que ingresa a la bodega
-            </Text>
-            <Text style={styles.instructionItem}>
-              • Ajusta las cantidades si es necesario
-            </Text>
-            <Text style={styles.instructionItem}>
-              • Verifica que todos los items estén incluidos
-            </Text>
-            <Text style={styles.instructionItem}>
-              • Registra el check-in para actualizar inventario
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
     </View>
   );
 };
@@ -245,215 +137,79 @@ export const CheckInScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: 'white',
-    paddingTop: 50,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  backButton: {
-    padding: 5,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
-  },
-  saveButton: {
-    backgroundColor: '#34C759',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    backgroundColor: '#f8f9fa',
   },
   content: {
     flex: 1,
   },
-  infoSection: {
+  header: {
+    backgroundColor: '#fff',
     padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
   },
-  infoCard: {
-    backgroundColor: '#e8f5e8',
-    borderRadius: 10,
-    padding: 20,
+  locationInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderLeftWidth: 4,
-    borderLeftColor: '#34C759',
   },
-  infoContent: {
+  locationDetails: {
+    marginLeft: 12,
     flex: 1,
-    marginLeft: 15,
   },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  infoText: {
+  locationTitle: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 20,
+    marginBottom: 4,
   },
-  section: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 10,
-    padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  sectionTitle: {
+  locationText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
   },
-  totalBadge: {
-    backgroundColor: '#34C759',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+  scannerSection: {
+    flex: 1,
+    marginTop: 20,
   },
-  totalText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
+  footer: {
+    flexDirection: 'row',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e1e5e9',
+    gap: 12,
   },
-  scanButton: {
-    backgroundColor: '#34C759',
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  submitButton: {
+    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 15,
+    paddingVertical: 16,
     borderRadius: 8,
-    marginBottom: 20,
-  },
-  scanButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 15,
-    fontWeight: '500',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 5,
-    textAlign: 'center',
-  },
-  itemsList: {
-    maxHeight: 300,
-  },
-  itemCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemSerial: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  cantidadContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cantidadLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 5,
-  },
-  cantidadValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#34C759',
-    marginRight: 8,
-  },
-  editContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  editInput: {
-    borderWidth: 1,
-    borderColor: '#34C759',
-    borderRadius: 4,
-    padding: 8,
-    fontSize: 16,
-    width: 80,
-    textAlign: 'center',
-  },
-  removeButton: {
-    padding: 8,
-    marginLeft: 10,
-  },
-  instructionsSection: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 10,
-    padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  instructionsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  instructionsList: {
+    backgroundColor: '#007AFF',
     gap: 8,
   },
-  instructionItem: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+  submitButtonDisabled: {
+    backgroundColor: '#f0f0f0',
+  },
+  submitButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  submitButtonTextDisabled: {
+    color: '#ccc',
   },
 });

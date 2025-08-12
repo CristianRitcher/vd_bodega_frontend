@@ -1,18 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  FlatList,
-  SafeAreaView,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ubicacion } from '../types';
 import { inventariosAPI } from '../services/api';
-import { Scanner } from '../components/Scanner';
+import { MultipleScanner } from '../components/MultipleScanner';
 import { useAuth } from '../context/AuthContext';
 
 interface RouteParams {
@@ -27,19 +26,11 @@ export const MoverItemsScreen: React.FC = () => {
   const { ubicacionOrigen, ubicacionDestino } = route.params as RouteParams;
   
   const [loading, setLoading] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
   const [seriales, setSeriales] = useState<string[]>([]);
 
-  const handleScan = (serial: string) => {
-    setShowScanner(false);
-    
-    // Agregar serial a la lista (permite duplicados)
-    setSeriales(prev => [...prev, serial]);
-  };
-
-  const removeSerial = (index: number) => {
-    setSeriales(prev => prev.filter((_, i) => i !== index));
-  };
+  const handleCodesChange = useCallback((codes: string[]) => {
+    setSeriales(codes);
+  }, []);
 
   const handleSubmit = async () => {
     if (seriales.length === 0) {
@@ -47,9 +38,14 @@ export const MoverItemsScreen: React.FC = () => {
       return;
     }
 
+    if (!user) {
+      Alert.alert('Error', 'Usuario no autenticado');
+      return;
+    }
+
     Alert.alert(
       'Confirmar Movimiento',
-      `¿Mover ${seriales.length} items?\n\nDe: ${ubicacionOrigen.descripcion}\nA: ${ubicacionDestino.descripcion}`,
+      `¿Mover ${seriales.length} item(s)?\n\nDe: ${ubicacionOrigen.rack}-${ubicacionOrigen.fila}-${ubicacionOrigen.columna}\nA: ${ubicacionDestino.rack}-${ubicacionDestino.fila}-${ubicacionDestino.columna}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Mover', onPress: confirmarMovimiento },
@@ -61,250 +57,188 @@ export const MoverItemsScreen: React.FC = () => {
     setLoading(true);
     try {
       await inventariosAPI.createMovimiento({
-        responsable: user?.nombre || 'Usuario',
+        responsable: user.nombre,
         seriales,
         ubicacion_origen_id: ubicacionOrigen.id,
         ubicacion_destino_id: ubicacionDestino.id,
       });
 
-      Alert.alert('Éxito', `Se movieron ${seriales.length} items correctamente`, [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('Inventario'),
-        },
-      ]);
+      Alert.alert(
+        'Movimiento Exitoso',
+        `Se movieron ${seriales.length} item(s) correctamente`,
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('Inventario'),
+          },
+        ]
+      );
     } catch (error) {
+      console.error('Error al mover items:', error);
       Alert.alert('Error', 'No se pudieron mover los items');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderSerial = ({ item, index }: { item: string; index: number }) => (
-    <View style={styles.serialItem}>
-      <Text style={styles.serialText}>{item}</Text>
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => removeSerial(index)}
-      >
-        <Ionicons name="close-circle" size={20} color="#FF3B30" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  if (showScanner) {
-    return (
-      <Scanner
-        onScan={handleScan}
-        onClose={() => setShowScanner(false)}
-        title="Escanear Items a Mover"
-      />
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <ScrollView style={styles.content}>
+        <View style={styles.header}>
+          <View style={styles.movementInfo}>
+            <View style={styles.locationRow}>
+              <Ionicons name="location" size={20} color="#007AFF" />
+              <View style={styles.locationDetails}>
+                <Text style={styles.locationLabel}>Desde:</Text>
+                <Text style={styles.locationText}>
+                  {ubicacionOrigen.rack}-{ubicacionOrigen.fila}-{ubicacionOrigen.columna}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.arrow}>
+              <Ionicons name="arrow-down" size={24} color="#666" />
+            </View>
+            
+            <View style={styles.locationRow}>
+              <Ionicons name="location" size={20} color="#28a745" />
+              <View style={styles.locationDetails}>
+                <Text style={styles.locationLabel}>Hacia:</Text>
+                <Text style={styles.locationText}>
+                  {ubicacionDestino.rack}-{ubicacionDestino.fila}-{ubicacionDestino.columna}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.scannerSection}>
+          <MultipleScanner
+            onCodesChange={handleCodesChange}
+            placeholder="Escanear serial para mover..."
+            title="Seriales para Mover"
+            delayMs={500}
+          />
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={styles.cancelButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Text style={styles.cancelButtonText}>Cancelar</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Mover Items</Text>
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.ubicacionesInfo}>
-          <View style={styles.ubicacionInfoCard}>
-            <Text style={styles.ubicacionLabel}>Origen:</Text>
-            <Text style={[styles.ubicacionNombre, { color: '#FF9500' }]}>
-              {ubicacionOrigen.descripcion}
-            </Text>
-          </View>
-          
-          <View style={styles.arrowContainer}>
-            <Ionicons name="arrow-forward" size={24} color="#007AFF" />
-          </View>
-          
-          <View style={styles.ubicacionInfoCard}>
-            <Text style={styles.ubicacionLabel}>Destino:</Text>
-            <Text style={[styles.ubicacionNombre, { color: '#34C759' }]}>
-              {ubicacionDestino.descripcion}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Seriales a Mover ({seriales.length})</Text>
-            <TouchableOpacity
-              style={styles.scanButton}
-              onPress={() => setShowScanner(true)}
-            >
-              <Ionicons name="barcode" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-          
-          {seriales.length > 0 ? (
-            <FlatList
-              data={seriales}
-              keyExtractor={(item, index) => `${item}-${index}`}
-              renderItem={renderSerial}
-              style={styles.serialesList}
-            />
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="swap-horizontal-outline" size={48} color="#ccc" />
-              <Text style={styles.emptyText}>
-                Escanea los seriales que quieres mover de{'\n'}
-                <Text style={{ color: '#FF9500' }}>{ubicacionOrigen.descripcion}</Text>
-                {' a '}
-                <Text style={{ color: '#34C759' }}>{ubicacionDestino.descripcion}</Text>
-              </Text>
-            </View>
-          )}
-        </View>
 
         <TouchableOpacity
-          style={[styles.submitButton, seriales.length === 0 && styles.submitButtonDisabled]}
+          style={[
+            styles.submitButton,
+            (loading || seriales.length === 0) && styles.submitButtonDisabled,
+          ]}
           onPress={handleSubmit}
           disabled={loading || seriales.length === 0}
         >
-          <Text style={styles.submitButtonText}>
-            {loading ? 'Moviendo...' : `Mover ${seriales.length} Items`}
+          <Ionicons 
+            name="swap-horizontal" 
+            size={20} 
+            color={loading || seriales.length === 0 ? "#ccc" : "#fff"} 
+          />
+          <Text style={[
+            styles.submitButtonText,
+            (loading || seriales.length === 0) && styles.submitButtonTextDisabled,
+          ]}>
+            {loading ? 'Moviendo...' : `Mover (${seriales.length})`}
           </Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    backgroundColor: '#f8f9fa',
   },
   content: {
     flex: 1,
-    padding: 16,
   },
-  ubicacionesInfo: {
+  header: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e5e9',
+  },
+  movementInfo: {
+    alignItems: 'center',
+  },
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    width: '100%',
+    paddingVertical: 12,
   },
-  ubicacionInfoCard: {
+  locationDetails: {
+    marginLeft: 12,
     flex: 1,
-    alignItems: 'center',
   },
-  arrowContainer: {
-    marginHorizontal: 16,
-  },
-  ubicacionLabel: {
-    fontSize: 12,
+  locationLabel: {
+    fontSize: 14,
     color: '#666',
     marginBottom: 4,
   },
-  ubicacionNombre: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  section: {
-    flex: 1,
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
+  locationText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
   },
-  scanButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 8,
+  arrow: {
+    paddingVertical: 8,
   },
-  serialesList: {
+  scannerSection: {
     flex: 1,
+    marginTop: 20,
   },
-  serialItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
+  footer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e1e5e9',
+    gap: 12,
   },
-  serialText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  removeButton: {
-    padding: 4,
-  },
-  emptyState: {
+  cancelButton: {
     flex: 1,
-    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
     alignItems: 'center',
   },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 12,
-    textAlign: 'center',
-    lineHeight: 20,
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
   },
   submitButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingVertical: 16,
+    flex: 2,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    gap: 8,
   },
   submitButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#f0f0f0',
   },
   submitButtonText: {
-    color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
+    color: '#fff',
+    fontWeight: '600',
+  },
+  submitButtonTextDisabled: {
+    color: '#ccc',
   },
 });

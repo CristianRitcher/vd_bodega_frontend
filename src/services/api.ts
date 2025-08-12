@@ -20,10 +20,10 @@ import {
 } from '../types';
 
 // Configurar la URL base de la API
-const API_BASE_URL = 'http://192.168.0.207:3000'; // Cambiar por la IP de tu servidor
+const API_BASE_URL_FALLBACK = 'http://192.168.0.207:3000'; // Cambiar por la IP de tu servidor
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: process.env.API_BASE_URL || API_BASE_URL_FALLBACK,
   headers: {
     'Content-Type': 'application/json',
   },
