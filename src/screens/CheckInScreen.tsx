@@ -27,7 +27,7 @@ export const CheckInScreen: React.FC = () => {
     if (seriales.length === 0) {
       Alert.alert('Error', 'Debes escanear al menos un serial');
       return;
-    }
+    } 
 
     if (!user) {
       Alert.alert('Error', 'Usuario no autenticado');
